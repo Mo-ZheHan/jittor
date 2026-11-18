@@ -1,11 +1,10 @@
 """Small sorted top-k for wide CUDA inference rows."""
-import jittor as jt
-from jittor._core.dtypes import dtype_name
-from jittor._core.flags import _output_requires_grad
-from jittor._runtime.dispatch import optional_kernel
 
 
-def _supports(x, k, dim=-1, largest=True, sorted=True):
+def supports_wide_topk(x, k, dim=-1, largest=True, sorted=True):
+    from jittor._core.dtypes import dtype_name
+    from jittor._core.flags import _output_requires_grad
+
     return (len(x.shape) == 2 and dim in (-1, 1) and largest and sorted
             and type(k) is int and 1 <= k <= 32 and 0 < x.shape[0] <= 65535
             and 20000 <= x.shape[1] <= 2147483647 and dtype_name(x.dtype) == "float32"
@@ -95,9 +94,10 @@ order_winners<<<out0_shape0,32>>>(@ARGS);
 """
 
 
-@optional_kernel("tensor.topk", "cuda", supports=_supports)
 def wide_topk_cuda(x, k, dim=-1, largest=True, sorted=True):
     """Merge tile winners; stable radix selection preserves input order at the cutoff."""
+    import jittor as jt
+
     rows, cols = map(int, x.shape)
     ids = None
     while True:
